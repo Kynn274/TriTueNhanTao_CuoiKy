@@ -1,4 +1,3 @@
-
 import pygame
 import random
 import heapq
@@ -20,13 +19,21 @@ FPS = 5  # Increased for smoother animation
 
 # Colors
 BLACK = (0, 0, 0)
-BLUE = (0, 0, 255)
+BLUE = (65, 105, 225)     # Royal Blue - main wall color
 WHITE = (255, 255, 255)
-YELLOW = (255, 255, 0)
-RED = (255, 0, 0)
-PINK = (255, 192, 203)
-CYAN = (0, 255, 255)
-ORANGE = (255, 165, 0)
+YELLOW = (255, 223, 0)    # Gold - for Pacman
+RED = (220, 20, 60)       # Crimson - for ghost
+PINK = (255, 105, 180)    # Hot Pink - for ghost
+CYAN = (0, 191, 255)      # Deep Sky Blue - for ghost
+ORANGE = (255, 140, 0)    # Dark Orange - for ghost
+PURPLE = (147, 112, 219)  # Medium Purple - for power pellets
+PASTEL_BLUE = (135, 206, 235)  # Sky Blue - for background
+PASTEL_GREEN = (144, 238, 144) # Light Green - for dots
+PASTEL_YELLOW = (255, 250, 205) # Lemon Chiffon - for menu
+WALL_DECOR = (135, 206, 235)   # Sky Blue - elegant wall decorations
+GOLD = (218, 165, 32)    # Golden Rod - for special effects
+SILVER = (192, 192, 192) # Silver - for metallic effects
+PEARL = (240, 234, 214)  # Pearl - for elegant highlights
 
 # Create the screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -132,7 +139,8 @@ class Pacman:
         self.lives = 3
         self.power_mode = False
         self.power_timer = 0
-        self.prev_x = self.x  # Track previous position for better collision detection
+        self.fps = 10  # Thêm thuộc tính fps mặc định
+        self.prev_x = self.x
         self.prev_y = self.y
 
     def move(self):
@@ -434,11 +442,66 @@ def draw_map():
         for x in range(GRID_WIDTH):
             rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             if game_map[y][x] == 1:
+                # Draw main wall
                 pygame.draw.rect(screen, BLUE, rect)
+                
+                # Add cute brick pattern
+                brick_height = CELL_SIZE // 3
+                for i in range(3):
+                    # Draw horizontal brick lines
+                    offset = (i % 2) * (CELL_SIZE // 2)
+                    pygame.draw.line(screen, PASTEL_BLUE, 
+                                   (x * CELL_SIZE + offset, y * CELL_SIZE + i * brick_height),
+                                   (x * CELL_SIZE + CELL_SIZE - offset, y * CELL_SIZE + i * brick_height), 2)
+                
+                # Add cute corner decorations
+                if (x > 0 and game_map[y][x-1] == 1) and (y > 0 and game_map[y-1][x] == 1):
+                    # Top-left corner
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + 4, y * CELL_SIZE + 4), 3)
+                if (x < GRID_WIDTH-1 and game_map[y][x+1] == 1) and (y > 0 and game_map[y-1][x] == 1):
+                    # Top-right corner
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + CELL_SIZE - 4, y * CELL_SIZE + 4), 3)
+                if (x > 0 and game_map[y][x-1] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1):
+                    # Bottom-left corner
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + 4, y * CELL_SIZE + CELL_SIZE - 4), 3)
+                if (x < GRID_WIDTH-1 and game_map[y][x+1] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1):
+                    # Bottom-right corner
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + CELL_SIZE - 4, y * CELL_SIZE + CELL_SIZE - 4), 3)
+                
+                # Add cute dots in the middle of walls
+                if (x > 0 and game_map[y][x-1] == 1) and (x < GRID_WIDTH-1 and game_map[y][x+1] == 1):
+                    # Horizontal wall
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE//2), 2)
+                if (y > 0 and game_map[y-1][x] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1):
+                    # Vertical wall
+                    pygame.draw.circle(screen, PASTEL_BLUE, (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE//2), 2)
+                
+                # Add cute patterns for T-junctions
+                if (x > 0 and game_map[y][x-1] == 1) and (x < GRID_WIDTH-1 and game_map[y][x+1] == 1) and (y > 0 and game_map[y-1][x] == 1):
+                    # T-junction facing up
+                    pygame.draw.line(screen, PASTEL_BLUE, 
+                                   (x * CELL_SIZE + CELL_SIZE//4, y * CELL_SIZE + CELL_SIZE//2),
+                                   (x * CELL_SIZE + CELL_SIZE*3//4, y * CELL_SIZE + CELL_SIZE//2), 2)
+                if (x > 0 and game_map[y][x-1] == 1) and (x < GRID_WIDTH-1 and game_map[y][x+1] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1):
+                    # T-junction facing down
+                    pygame.draw.line(screen, PASTEL_BLUE, 
+                                   (x * CELL_SIZE + CELL_SIZE//4, y * CELL_SIZE + CELL_SIZE//2),
+                                   (x * CELL_SIZE + CELL_SIZE*3//4, y * CELL_SIZE + CELL_SIZE//2), 2)
+                if (y > 0 and game_map[y-1][x] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1) and (x > 0 and game_map[y][x-1] == 1):
+                    # T-junction facing left
+                    pygame.draw.line(screen, PASTEL_BLUE, 
+                                   (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE//4),
+                                   (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE*3//4), 2)
+                if (y > 0 and game_map[y-1][x] == 1) and (y < GRID_HEIGHT-1 and game_map[y+1][x] == 1) and (x < GRID_WIDTH-1 and game_map[y][x+1] == 1):
+                    # T-junction facing right
+                    pygame.draw.line(screen, PASTEL_BLUE, 
+                                   (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE//4),
+                                   (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE*3//4), 2)
+                
             elif game_map[y][x] == 2:
-                pygame.draw.circle(screen, WHITE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 10)
+                pygame.draw.circle(screen, PASTEL_GREEN, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 6)
             elif game_map[y][x] == 3:
-                pygame.draw.circle(screen, WHITE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 4)
+                pygame.draw.circle(screen, PURPLE, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 4)
 
 def draw_score(pacman):
     font = pygame.font.Font(None, 36)
@@ -448,7 +511,7 @@ def draw_score(pacman):
     screen.blit(lives_text, (WIDTH - 120, 10))
     
     if pacman.power_mode:
-        power_time = max(0, pacman.power_timer // pacman.fps)  # Convert frames to seconds
+        power_time = max(0, pacman.power_timer // pacman.fps)
         power_text = font.render(f"Power: {power_time}s", True, WHITE)
         screen.blit(power_text, (WIDTH // 2 - power_text.get_width() // 2, 10))
 
@@ -500,56 +563,235 @@ def check_win():
                 return False
     return True
 
-def game_over_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    text = font.render("GAME OVER!", True, RED)
-    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
-    pygame.display.flip()
-    pygame.time.wait(3000)
+def reset_game_map():
+    """Reset the game map to initial state"""
+    global game_map
+    game_map = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 3, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 3, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 2, 1],
+        [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1],
+        [1, 3, 2, 1, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 3, 1],
+        [1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1],
+        [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
 
-def win_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    text = font.render("YOU WIN!", True, YELLOW)
-    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
-    pygame.display.flip()
-    pygame.time.wait(3000)
+async def game_over_screen():
+    """Game over screen with options to restart or return to menu"""
+    selected = 0
+    options = ["Play Again", "Return to Menu", "Exit"]
+    
+    while True:
+        screen.fill(BLACK)
+        
+        # Game Over title
+        font = pygame.font.Font(None, 74)
+        text = font.render("GAME OVER!", True, RED)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 3))
+        
+        # Options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else WHITE
+            option_text = font.render(option, True, color)
+            y_pos = HEIGHT // 2 + i * 60
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, y_pos))
+        
+        # Instructions
+        font = pygame.font.Font(None, 36)
+        instruction = font.render("Use arrow keys and Enter to select", True, WHITE)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 80))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Play Again
+                        return "restart"
+                    elif selected == 1:  # Return to Menu
+                        return "menu"
+                    else:  # Exit
+                        return "quit"
+        
+        await asyncio.sleep(0.016)
 
 async def start_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    title = font.render("PACMAN", True, YELLOW)
-    screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 4))
+    """Start screen with beautiful effects"""
+    selected = 0
+    options = ["Start Game", "Exit"]
     
-    font = pygame.font.Font(None, 36)
-    instructions = [
-        "Use arrow keys to move",
-        "Eat all dots to win",
-        "Avoid ghosts unless powered up",
-        "Press SPACE to start"
-    ]
-    
-    for i, line in enumerate(instructions):
-        text = font.render(line, True, WHITE)
-        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 + i * 40))
-    
-    pygame.display.flip()
+    # Animation variables
+    title_bounce = 0
+    time_counter = 0
     
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                return True
-        await asyncio.sleep(0.01)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Start Game
+                        return True
+                    else:  # Exit
+                        pygame.quit()
+                        return False
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    return False
 
-async def main():
-    difficulty = await difficulty_screen()
-    if not difficulty:
-        return
+        time_counter += 1
+        title_bounce = math.sin(time_counter * 0.1) * 5
+        
+        # Blue gradient background
+        for y in range(HEIGHT):
+            blue_intensity = int(25 + (y / HEIGHT) * 100)
+            color = (0, 0, blue_intensity + 100)
+            pygame.draw.line(screen, color, (0, y), (WIDTH, y))
+        
+        # Title
+        font = pygame.font.Font(None, 84)
+        title = font.render("PACMAN AI", True, YELLOW)
+        title_y = HEIGHT // 4 + title_bounce
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, title_y))
+        
+        # Subtitle
+        font = pygame.font.Font(None, 36)
+        subtitle = font.render("Artificial Intelligence - Pathfinding Algorithms", True, PASTEL_BLUE)
+        screen.blit(subtitle, (WIDTH // 2 - subtitle.get_width() // 2, title_y + 80))
+        
+        # Menu options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else PASTEL_BLUE
+            option_text = font.render(option, True, color)
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, HEIGHT // 2 + i * 60))
+        
+        # Instructions
+        font = pygame.font.Font(None, 32)
+        instruction = font.render("Arrow Keys: Move | Enter: Select | ESC: Exit", True, WHITE)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 100))
+        
+        # Animated Pacman preview
+        pacman_x = WIDTH // 4
+        pacman_y = HEIGHT - 150
+        pacman_radius = 15
+        mouth_angle = (time_counter * 10) % 60
+        
+        pygame.draw.arc(screen, YELLOW, 
+                       (pacman_x - pacman_radius, pacman_y - pacman_radius, 
+                        pacman_radius * 2, pacman_radius * 2),
+                       math.radians(mouth_angle), math.radians(360 - mouth_angle), pacman_radius)
+        
+        # Animated dots
+        for i in range(5):
+            dot_x = pacman_x + 40 + i * 20
+            pygame.draw.circle(screen, PASTEL_BLUE, (dot_x, pacman_y), 3)
+        
+        # Ghost preview
+        ghost_colors = [RED, PINK, CYAN, ORANGE]
+        for i, color in enumerate(ghost_colors):
+            ghost_x = WIDTH * 3 // 4 + i * 25
+            ghost_y = HEIGHT - 150 + math.sin(time_counter * 0.15 + i) * 5
+            pygame.draw.circle(screen, color, (int(ghost_x), int(ghost_y)), 12)
+            pygame.draw.rect(screen, color, (ghost_x - 12, ghost_y, 24, 12))
+        
+        pygame.display.flip()
+        await asyncio.sleep(0.016)  # Add small delay to prevent high CPU usage
+
+async def win_screen():
+    """Win screen with options to restart or return to menu"""
+    selected = 0
+    options = ["Play Again", "Return to Menu", "Exit"]
+    time_counter = 0
     
+    while True:
+        time_counter += 1
+        
+        # Celebration background
+        for y in range(HEIGHT):
+            color_intensity = int(30 + (y / HEIGHT) * 50)
+            color = (color_intensity, color_intensity // 2, 0)
+            pygame.draw.line(screen, color, (0, y), (WIDTH, y))
+        
+        # Animated confetti
+        for i in range(20):
+            x = (i * 50 + time_counter * 2) % WIDTH
+            y = (i * 30 + time_counter) % HEIGHT
+            color = [RED, YELLOW, CYAN, PINK][i % 4]
+            pygame.draw.circle(screen, color, (x, y), 3)
+        
+        # Victory title
+        font = pygame.font.Font(None, 84)
+        title_bounce = math.sin(time_counter * 0.1) * 8
+        text = font.render("VICTORY!", True, YELLOW)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 3 + title_bounce))
+        
+        # Options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else WHITE
+            if i == selected:
+                glow_text = font.render(option, True, (255, 255, 150))
+                screen.blit(glow_text, (WIDTH // 2 - glow_text.get_width() // 2 + 2, HEIGHT // 2 + i * 60 + 2))
+            
+            option_text = font.render(option, True, color)
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, HEIGHT // 2 + i * 60))
+        
+        # Instructions
+        font = pygame.font.Font(None, 36)
+        instruction = font.render("Use arrow keys and Enter to select", True, WHITE)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 80))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Play Again
+                        reset_game_map()  # Reset map before restarting
+                        return "restart"
+                    elif selected == 1:  # Return to Menu
+                        reset_game_map()  # Reset map before returning to menu
+                        return "menu"
+                    else:  # Exit
+                        return "quit"
+        
+        await asyncio.sleep(0.016)
+
+async def game_loop(difficulty):
+    """Main game loop"""
     pacman = Pacman()
     pacman.fps = difficulty["fps"]
     ghosts = [
@@ -559,9 +801,6 @@ async def main():
         Ghost(9, 8, ORANGE, "random", difficulty["ghost_update_freq"])
     ]
     
-    if not await start_screen():
-        return
-    
     running = True
     game_over = False
     win = False
@@ -569,7 +808,7 @@ async def main():
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                return "quit"
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     pacman.next_direction = UP
@@ -579,6 +818,8 @@ async def main():
                     pacman.next_direction = LEFT
                 elif event.key == pygame.K_RIGHT:
                     pacman.next_direction = RIGHT
+                elif event.key == pygame.K_ESCAPE:
+                    return "menu"  # Return to menu
         
         if not game_over and not win:
             screen.fill(BLACK)
@@ -603,16 +844,53 @@ async def main():
             clock.tick(difficulty["fps"])
             await asyncio.sleep(1.0 / difficulty["fps"])
         elif game_over:
-            game_over_screen()
-            running = False
+            result = await game_over_screen()
+            return result
         elif win:
-            win_screen()
-            running = False
+            result = await win_screen()
+            return result
+
+async def main():
+    """Main function with menu loop"""
+    try:
+        while True:
+            # Show start screen
+            if not await start_screen():
+                break
+            
+            # Show difficulty selection
+            difficulty = await difficulty_screen()
+            if difficulty is None:
+                break
+            
+            # Reset game map before starting new game
+            reset_game_map()
+            
+            # Game loop with restart/menu options
+            while True:
+                result = await game_loop(difficulty)
+                
+                if result == "quit":
+                    pygame.quit()
+                    return
+                elif result == "menu":
+                    reset_game_map()  # Reset map before returning to menu
+                    break  # Return to start screen
+                elif result == "restart":
+                    reset_game_map()  # Reset map before restarting
+                    continue  # Restart the game with same difficulty
     
-    pygame.quit()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        pygame.quit()
+        return
 
 if platform.system() == "Emscripten":
     asyncio.run_coroutine_threadsafe(main(), asyncio.get_event_loop())
 else:
     if __name__ == "__main__":
-        asyncio.run(main())
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            pygame.quit()
