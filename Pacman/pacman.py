@@ -223,12 +223,14 @@ class Ghost:
         self.scared = False
         self.path = []
         self.update_counter = 0
-        self.respawn_timer = 0  # Timer for respawn after being eaten
         self.eaten = False  # Flag to indicate if ghost is eaten
         self.start_x = 9  # Fixed starting position at the center (9, 9)
         self.start_y = 9
         self.prev_x = self.x  # Track previous position for better collision detection
         self.prev_y = self.y
+        self.has_corpse = False  # Flag to indicate if ghost has a corpse
+        self.respawn_timer = 0  # Timer for respawn
+        self.glow_timer = 0  # Timer for glow effect
 
     def set_target(self, pacman):
         if self.scared:
@@ -249,12 +251,21 @@ class Ghost:
         # Store previous position before moving
         self.prev_x, self.prev_y = self.x, self.y
 
-        if self.respawn_timer > 0:
-            self.respawn_timer -= 1
-            if self.respawn_timer <= 0:
-                self.eaten = False
-            return
+        # Update glow timer
+        if self.has_corpse:
+            self.glow_timer += 1
 
+        # Update respawn logic
+        if self.eaten:
+            self.respawn_timer += 1
+            if self.respawn_timer >= pacman.fps * 3:  # Respawn after 3 seconds
+                self.eaten = False
+                self.has_corpse = False
+                self.respawn_timer = 0
+                self.glow_timer = 0
+            return  # Don't move while eaten
+
+        # Only move if ghost is not eaten
         self.update_counter += 1
         
         if self.update_counter >= self.ghost_update_freq:
@@ -362,15 +373,17 @@ class Ghost:
         return []
 
     def draw(self):
-        center_x = self.x * CELL_SIZE + CELL_SIZE // 2
-        center_y = self.y * CELL_SIZE + CELL_SIZE // 2
-        radius = CELL_SIZE // 2 - 2
-        
-        if self.eaten:
-            # Draw as a red circle when eaten
-            pygame.draw.circle(screen, RED, (center_x, center_y), radius)
-        else:
-            color = BLUE if self.scared else self.color
+        # Only draw ghost if it's not eaten
+        if not self.eaten:
+            center_x = self.x * CELL_SIZE + CELL_SIZE // 2
+            center_y = self.y * CELL_SIZE + CELL_SIZE // 2
+            radius = CELL_SIZE // 2 - 2
+            
+            if self.scared:
+                color = BLUE
+            else:
+                color = self.color
+                
             pygame.draw.circle(screen, color, (center_x, center_y), radius)
             pygame.draw.rect(screen, color, (center_x - radius, center_y, radius * 2, radius))
             wave_height = radius // 3
@@ -386,56 +399,6 @@ class Ghost:
             dx, dy = self.direction
             pygame.draw.circle(screen, BLACK, (center_x - eye_offset + dx * pupil_offset, center_y - eye_offset // 2 + dy * pupil_offset), pupil_radius)
             pygame.draw.circle(screen, BLACK, (center_x + eye_offset + dx * pupil_offset, center_y - eye_offset // 2 + dy * pupil_offset), pupil_radius)
-        # Draw ghost body
-        color = BLUE if self.scared else self.color
-        
-        # Draw the semi-circle for the body
-        pygame.draw.circle(screen, color, (center_x, center_y), radius)
-        
-        # Draw the rectangular bottom part
-        pygame.draw.rect(screen, color, 
-                        (center_x - radius, center_y, radius * 2, radius))
-        
-        # Draw the wavy bottom
-        wave_height = radius // 3
-        for i in range(3):
-            offset = i * (radius * 2) // 3
-            pygame.draw.rect(screen, color, 
-                            (center_x - radius + offset, center_y + radius, 
-                             (radius * 2) // 3, wave_height))
-        
-        # Draw eyes
-        eye_radius = radius // 3
-        eye_offset = radius // 2
-        
-        # Left eye
-        pygame.draw.circle(screen, WHITE, 
-                          (center_x - eye_offset, center_y - eye_offset // 2), 
-                          eye_radius)
-        
-        # Right eye
-        pygame.draw.circle(screen, WHITE, 
-                          (center_x + eye_offset, center_y - eye_offset // 2), 
-                          eye_radius)
-        
-        # Pupils
-        pupil_radius = eye_radius // 2
-        pupil_offset = eye_radius // 2
-        
-        # Direction of pupils based on ghost direction
-        dx, dy = self.direction
-        
-        # Left pupil
-        pygame.draw.circle(screen, BLACK, 
-                          (center_x - eye_offset + dx * pupil_offset, 
-                           center_y - eye_offset // 2 + dy * pupil_offset), 
-                          pupil_radius)
-        
-        # Right pupil
-        pygame.draw.circle(screen, BLACK, 
-                          (center_x + eye_offset + dx * pupil_offset, 
-                           center_y - eye_offset // 2 + dy * pupil_offset), 
-                          pupil_radius)
 
 def draw_map():
     for y in range(GRID_HEIGHT):
@@ -520,11 +483,12 @@ def check_collision(pacman, ghosts):
         # Check if Pacman and ghost are in the same position
         if pacman.x == ghost.x and pacman.y == ghost.y:
             if pacman.power_mode and not ghost.eaten:
-                # Ghost is eaten, teleport to starting point immediately
+                # Ghost is eaten, create corpse at spawn point
                 ghost.eaten = True
-                ghost.x = ghost.start_x  # Teleport to (9, 9)
+                ghost.has_corpse = True
+                ghost.respawn_timer = 0  # Start respawn timer
+                ghost.x = ghost.start_x  # Move to spawn point
                 ghost.y = ghost.start_y
-                ghost.respawn_timer = pacman.fps * 2  # 2 seconds respawn time
                 pacman.score += 200
             elif not pacman.power_mode and not ghost.eaten:
                 # Pacman loses a life
@@ -539,11 +503,12 @@ def check_collision(pacman, ghosts):
         elif (pacman.x == ghost.prev_x and pacman.y == ghost.prev_y and
               pacman.prev_x == ghost.x and pacman.prev_y == ghost.y):
             if pacman.power_mode and not ghost.eaten:
-                # Ghost is eaten, teleport to starting point immediately
+                # Ghost is eaten, create corpse at spawn point
                 ghost.eaten = True
-                ghost.x = ghost.start_x  # Teleport to (9, 9)
+                ghost.has_corpse = True
+                ghost.respawn_timer = 0  # Start respawn timer
+                ghost.x = ghost.start_x  # Move to spawn point
                 ghost.y = ghost.start_y
-                ghost.respawn_timer = pacman.fps * 2  # 2 seconds respawn time
                 pacman.score += 200
             elif not pacman.power_mode and not ghost.eaten:
                 # Pacman loses a life
@@ -836,9 +801,33 @@ async def game_loop(difficulty):
                 win = True
             
             draw_map()
-            pacman.draw()
+            # Draw ghost corpses (red dots) at spawn points with glow effect
             for ghost in ghosts:
-                ghost.draw()
+                if ghost.has_corpse:
+                    # Calculate glow intensity using sine wave
+                    glow_intensity = (math.sin(ghost.glow_timer * 0.2) + 1) / 2  # Range from 0 to 1
+                    # Create glowing red color
+                    glow_red = int(255 * glow_intensity)
+                    glow_color = (glow_red, 0, 0)
+                    
+                    # Draw outer glow
+                    glow_radius = int(CELL_SIZE // 2 * (1 + glow_intensity * 0.3))  # Vary size with glow
+                    pygame.draw.circle(screen, glow_color, 
+                                     (ghost.start_x * CELL_SIZE + CELL_SIZE // 2,
+                                      ghost.start_y * CELL_SIZE + CELL_SIZE // 2),
+                                     glow_radius)
+                    
+                    # Draw inner solid circle
+                    pygame.draw.circle(screen, RED, 
+                                     (ghost.start_x * CELL_SIZE + CELL_SIZE // 2,
+                                      ghost.start_y * CELL_SIZE + CELL_SIZE // 2),
+                                     CELL_SIZE // 2)
+            
+            pacman.draw()
+            # Only draw ghosts that are not eaten
+            for ghost in ghosts:
+                if not ghost.eaten:
+                    ghost.draw()
             draw_score(pacman)
             pygame.display.flip()
             clock.tick(difficulty["fps"])
