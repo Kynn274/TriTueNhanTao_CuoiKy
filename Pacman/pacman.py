@@ -16,6 +16,7 @@ GRID_WIDTH = 19
 GRID_HEIGHT = 21
 WIDTH = CELL_SIZE * GRID_WIDTH
 HEIGHT = CELL_SIZE * GRID_HEIGHT
+FPS = 5  # Increased for smoother animation
 
 # Colors
 BLACK = (0, 0, 0)
@@ -151,10 +152,12 @@ class Pacman:
             self.x = next_x
             self.y = next_y
             
+            # Collect dots
             if game_map[self.y][self.x] == 2:
                 game_map[self.y][self.x] = 0
                 self.score += 10
             
+            # Collect power pellets
             elif game_map[self.y][self.x] == 3:
                 game_map[self.y][self.x] = 0
                 self.score += 50
@@ -167,10 +170,12 @@ class Pacman:
                 self.power_mode = False
 
     def draw(self):
+        # Draw Pacman as a circle with a mouth
         center_x = self.x * CELL_SIZE + CELL_SIZE // 2
         center_y = self.y * CELL_SIZE + CELL_SIZE // 2
         radius = CELL_SIZE // 2 - 2
         
+        # Determine mouth angle based on direction
         if self.direction == RIGHT:
             start_angle = 30
             end_angle = 330
@@ -188,6 +193,7 @@ class Pacman:
                                          radius * 2, radius * 2), 
                         math.radians(start_angle), math.radians(end_angle), radius)
         
+        # Draw a line from the center to complete the shape
         end_x = center_x + radius * math.cos(math.radians(start_angle))
         end_y = center_y - radius * math.sin(math.radians(start_angle))
         pygame.draw.line(screen, YELLOW, (center_x, center_y), (end_x, end_y), 1)
@@ -372,6 +378,56 @@ class Ghost:
             dx, dy = self.direction
             pygame.draw.circle(screen, BLACK, (center_x - eye_offset + dx * pupil_offset, center_y - eye_offset // 2 + dy * pupil_offset), pupil_radius)
             pygame.draw.circle(screen, BLACK, (center_x + eye_offset + dx * pupil_offset, center_y - eye_offset // 2 + dy * pupil_offset), pupil_radius)
+        # Draw ghost body
+        color = BLUE if self.scared else self.color
+        
+        # Draw the semi-circle for the body
+        pygame.draw.circle(screen, color, (center_x, center_y), radius)
+        
+        # Draw the rectangular bottom part
+        pygame.draw.rect(screen, color, 
+                        (center_x - radius, center_y, radius * 2, radius))
+        
+        # Draw the wavy bottom
+        wave_height = radius // 3
+        for i in range(3):
+            offset = i * (radius * 2) // 3
+            pygame.draw.rect(screen, color, 
+                            (center_x - radius + offset, center_y + radius, 
+                             (radius * 2) // 3, wave_height))
+        
+        # Draw eyes
+        eye_radius = radius // 3
+        eye_offset = radius // 2
+        
+        # Left eye
+        pygame.draw.circle(screen, WHITE, 
+                          (center_x - eye_offset, center_y - eye_offset // 2), 
+                          eye_radius)
+        
+        # Right eye
+        pygame.draw.circle(screen, WHITE, 
+                          (center_x + eye_offset, center_y - eye_offset // 2), 
+                          eye_radius)
+        
+        # Pupils
+        pupil_radius = eye_radius // 2
+        pupil_offset = eye_radius // 2
+        
+        # Direction of pupils based on ghost direction
+        dx, dy = self.direction
+        
+        # Left pupil
+        pygame.draw.circle(screen, BLACK, 
+                          (center_x - eye_offset + dx * pupil_offset, 
+                           center_y - eye_offset // 2 + dy * pupil_offset), 
+                          pupil_radius)
+        
+        # Right pupil
+        pygame.draw.circle(screen, BLACK, 
+                          (center_x + eye_offset + dx * pupil_offset, 
+                           center_y - eye_offset // 2 + dy * pupil_offset), 
+                          pupil_radius)
 
 def draw_map():
     for y in range(GRID_HEIGHT):
