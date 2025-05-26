@@ -131,7 +131,8 @@ class Pacman:
         self.lives = 3
         self.power_mode = False
         self.power_timer = 0
-        self.prev_x = self.x  # Track previous position for better collision detection
+        self.fps = 10  # Thêm thuộc tính fps mặc định
+        self.prev_x = self.x
         self.prev_y = self.y
 
     def move(self):
@@ -444,56 +445,238 @@ def check_win():
                 return False
     return True
 
-def game_over_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    text = font.render("GAME OVER!", True, RED)
-    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
-    pygame.display.flip()
-    pygame.time.wait(3000)
-
-def win_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    text = font.render("YOU WIN!", True, YELLOW)
-    screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
-    pygame.display.flip()
-    pygame.time.wait(3000)
-
-async def start_screen():
-    screen.fill(BLACK)
-    font = pygame.font.Font(None, 74)
-    title = font.render("PACMAN", True, YELLOW)
-    screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 4))
-    
-    font = pygame.font.Font(None, 36)
-    instructions = [
-        "Use arrow keys to move",
-        "Eat all dots to win",
-        "Avoid ghosts unless powered up",
-        "Press SPACE to start"
+def reset_game_map():
+    """Reset the game map to initial state"""
+    global game_map
+    game_map = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 3, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 3, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 2, 1],
+        [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 2, 1, 1, 1, 0, 1, 0, 1, 1, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 0, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0],
+        [1, 1, 1, 1, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1],
+        [1, 3, 2, 1, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 1, 2, 3, 1],
+        [1, 1, 2, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1],
+        [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
+        [1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     ]
-    
-    for i, line in enumerate(instructions):
-        text = font.render(line, True, WHITE)
-        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 + i * 40))
-    
-    pygame.display.flip()
+
+async def game_over_screen():
+    """Game over screen with options to restart or return to menu"""
+    selected = 0
+    options = ["Play Again", "Return to Menu", "Exit"]
     
     while True:
+        screen.fill(BLACK)
+        
+        # Game Over title
+        font = pygame.font.Font(None, 74)
+        text = font.render("GAME OVER!", True, RED)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 3))
+        
+        # Options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else WHITE
+            option_text = font.render(option, True, color)
+            y_pos = HEIGHT // 2 + i * 60
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, y_pos))
+        
+        # Instructions
+        font = pygame.font.Font(None, 36)
+        instruction = font.render("Use arrow keys and Enter to select", True, WHITE)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 80))
+        
+        pygame.display.flip()
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                return False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                return True
-        await asyncio.sleep(0.01)
+                return "quit"
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Play Again
+                        return "restart"
+                    elif selected == 1:  # Return to Menu
+                        return "menu"
+                    else:  # Exit
+                        return "quit"
+        
+        await asyncio.sleep(0.016)
 
-async def main():
-    difficulty = await difficulty_screen()
-    if not difficulty:
-        return
+async def start_screen():
+    """Start screen with beautiful effects"""
+    selected = 0
+    options = ["Start Game", "Exit"]
     
+    # Animation variables
+    title_bounce = 0
+    time_counter = 0
+    
+    while True:
+        time_counter += 1
+        title_bounce = math.sin(time_counter * 0.1) * 5
+        
+        # Gradient background
+        for y in range(HEIGHT):
+            color_intensity = int(20 + (y / HEIGHT) * 30)
+            color = (0, 0, color_intensity)
+            pygame.draw.line(screen, color, (0, y), (WIDTH, y))
+        
+        # Animated title
+        font = pygame.font.Font(None, 84)
+        title = font.render("PACMAN AI", True, YELLOW)
+        title_y = HEIGHT // 4 + title_bounce
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, title_y))
+        
+        # Subtitle
+        font = pygame.font.Font(None, 36)
+        subtitle = font.render("Artificial Intelligence - Pathfinding Algorithms", True, WHITE)
+        screen.blit(subtitle, (WIDTH // 2 - subtitle.get_width() // 2, title_y + 80))
+        
+        # Menu options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else WHITE
+            if i == selected:
+                # Glow effect for selected option
+                glow_text = font.render(option, True, (255, 255, 150))
+                screen.blit(glow_text, (WIDTH // 2 - glow_text.get_width() // 2 + 2, HEIGHT // 2 + i * 60 + 2))
+            
+            option_text = font.render(option, True, color)
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, HEIGHT // 2 + i * 60))
+        
+        # Instructions
+        font = pygame.font.Font(None, 32)
+        instruction = font.render("Arrow Keys: Move | Enter: Select | ESC: Exit", True, CYAN)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 100))
+        
+        # Animated Pacman preview
+        pacman_x = WIDTH // 4
+        pacman_y = HEIGHT - 150
+        pacman_radius = 15
+        mouth_angle = (time_counter * 10) % 60
+        
+        pygame.draw.arc(screen, YELLOW, 
+                       (pacman_x - pacman_radius, pacman_y - pacman_radius, 
+                        pacman_radius * 2, pacman_radius * 2),
+                       math.radians(mouth_angle), math.radians(360 - mouth_angle), pacman_radius)
+        
+        # Animated dots
+        for i in range(5):
+            dot_x = pacman_x + 40 + i * 20
+            dot_alpha = int(128 + 127 * math.sin(time_counter * 0.2 + i))
+            dot_color = (*WHITE, dot_alpha) if pygame.version.vernum >= (2, 0, 0) else WHITE
+            pygame.draw.circle(screen, WHITE, (dot_x, pacman_y), 3)
+        
+        # Ghost preview
+        ghost_colors = [RED, PINK, CYAN, ORANGE]
+        for i, color in enumerate(ghost_colors):
+            ghost_x = WIDTH * 3 // 4 + i * 25
+            ghost_y = HEIGHT - 150 + math.sin(time_counter * 0.15 + i) * 5
+            pygame.draw.circle(screen, color, (int(ghost_x), int(ghost_y)), 12)
+            pygame.draw.rect(screen, color, (ghost_x - 12, ghost_y, 24, 12))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Start Game
+                        return True
+                    else:  # Exit
+                        return False
+                elif event.key == pygame.K_ESCAPE:
+                    return False
+        
+        await asyncio.sleep(0.016)  # ~60 FPS
+
+async def win_screen():
+    """Win screen with options to restart or return to menu"""
+    selected = 0
+    options = ["Play Again", "Return to Menu", "Exit"]
+    time_counter = 0
+    
+    while True:
+        time_counter += 1
+        
+        # Celebration background
+        for y in range(HEIGHT):
+            color_intensity = int(30 + (y / HEIGHT) * 50)
+            color = (color_intensity, color_intensity // 2, 0)
+            pygame.draw.line(screen, color, (0, y), (WIDTH, y))
+        
+        # Animated confetti
+        for i in range(20):
+            x = (i * 50 + time_counter * 2) % WIDTH
+            y = (i * 30 + time_counter) % HEIGHT
+            color = [RED, YELLOW, CYAN, PINK][i % 4]
+            pygame.draw.circle(screen, color, (x, y), 3)
+        
+        # Victory title
+        font = pygame.font.Font(None, 84)
+        title_bounce = math.sin(time_counter * 0.1) * 8
+        text = font.render("VICTORY!", True, YELLOW)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 3 + title_bounce))
+        
+        # Options
+        font = pygame.font.Font(None, 48)
+        for i, option in enumerate(options):
+            color = YELLOW if i == selected else WHITE
+            if i == selected:
+                glow_text = font.render(option, True, (255, 255, 150))
+                screen.blit(glow_text, (WIDTH // 2 - glow_text.get_width() // 2 + 2, HEIGHT // 2 + i * 60 + 2))
+            
+            option_text = font.render(option, True, color)
+            screen.blit(option_text, (WIDTH // 2 - option_text.get_width() // 2, HEIGHT // 2 + i * 60))
+        
+        # Instructions
+        font = pygame.font.Font(None, 36)
+        instruction = font.render("Use arrow keys and Enter to select", True, WHITE)
+        screen.blit(instruction, (WIDTH // 2 - instruction.get_width() // 2, HEIGHT - 80))
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return "quit"
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected = (selected - 1) % len(options)
+                elif event.key == pygame.K_DOWN:
+                    selected = (selected + 1) % len(options)
+                elif event.key == pygame.K_RETURN:
+                    if selected == 0:  # Play Again
+                        return "restart"
+                    elif selected == 1:  # Return to Menu
+                        return "menu"
+                    else:  # Exit
+                        return "quit"
+        
+        await asyncio.sleep(0.016)
+
+async def game_loop(difficulty):
+    """Main game loop"""
     pacman = Pacman()
     pacman.fps = difficulty["fps"]
     ghosts = [
@@ -503,9 +686,6 @@ async def main():
         Ghost(9, 8, ORANGE, "random", difficulty["ghost_update_freq"])
     ]
     
-    if not await start_screen():
-        return
-    
     running = True
     game_over = False
     win = False
@@ -513,7 +693,7 @@ async def main():
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                return "quit"
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     pacman.next_direction = UP
@@ -523,6 +703,8 @@ async def main():
                     pacman.next_direction = LEFT
                 elif event.key == pygame.K_RIGHT:
                     pacman.next_direction = RIGHT
+                elif event.key == pygame.K_ESCAPE:
+                    return "menu"  # Return to menu
         
         if not game_over and not win:
             screen.fill(BLACK)
@@ -547,11 +729,35 @@ async def main():
             clock.tick(difficulty["fps"])
             await asyncio.sleep(1.0 / difficulty["fps"])
         elif game_over:
-            game_over_screen()
-            running = False
+            result = await game_over_screen()
+            return result
         elif win:
-            win_screen()
-            running = False
+            result = await win_screen()
+            return result
+
+async def main():
+    """Main function with menu loop"""
+    while True:
+        # Show start screen
+        if not await start_screen():
+            break
+        
+        # Show difficulty selection
+        difficulty = await difficulty_screen()
+        if difficulty is None:
+            break
+        
+        # Game loop with restart/menu options
+        while True:
+            result = await game_loop(difficulty)
+            
+            if result == "quit":
+                pygame.quit()
+                return
+            elif result == "menu":
+                break  # Return to start screen
+            elif result == "restart":
+                continue  # Restart the game with same difficulty
     
     pygame.quit()
 
