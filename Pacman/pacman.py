@@ -142,6 +142,7 @@ class Pacman:
         self.fps = 10  # Thêm thuộc tính fps mặc định
         self.prev_x = self.x
         self.prev_y = self.y
+        self.path = []  # Path for autoplay
 
     def move(self):
         # Store previous position before moving
@@ -176,6 +177,139 @@ class Pacman:
             self.power_timer -= 1
             if self.power_timer <= 0:
                 self.power_mode = False
+
+    def astar(self, start, target):
+        def heuristic(a, b):
+            return abs(a[0] - b[0]) + abs(a[1] - b[1])
+        
+        open_set = []
+        heapq.heappush(open_set, (0, start))
+        came_from = {}
+        g_score = {start: 0}
+        f_score = {start: heuristic(start, target)}
+        open_set_hash = {start}
+        
+        while open_set:
+            current = heapq.heappop(open_set)[1]
+            open_set_hash.remove(current)
+            
+            if current == target:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.reverse()
+                return path
+            
+            for dx, dy in DIRECTIONS:
+                neighbor = (current[0] + dx, current[1] + dy)
+                if (0 <= neighbor[0] < GRID_WIDTH and 0 <= neighbor[1] < GRID_HEIGHT and 
+                    game_map[neighbor[1]][neighbor[0]] != 1):
+                    tentative_g_score = g_score[current] + 1
+                    if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
+                        came_from[neighbor] = current
+                        g_score[neighbor] = tentative_g_score
+                        f_score[neighbor] = tentative_g_score + heuristic(neighbor, target)
+                        if neighbor not in open_set_hash:
+                            heapq.heappush(open_set, (f_score[neighbor], neighbor))
+                            open_set_hash.add(neighbor)
+        
+        return []
+
+    def evaluate_danger(self, ghosts):
+        """Heuristic to evaluate danger from ghosts"""
+        total_danger = 0
+        for ghost in ghosts:
+            if not ghost.eaten and not self.power_mode:  # Only consider active ghosts when not in power mode
+                distance = abs(self.x - ghost.x) + abs(self.y - ghost.y)
+                if distance < 3:  # Consider ghosts within 3 cells as highly dangerous
+                    total_danger += (3 - distance) * 2  # Higher penalty for closer ghosts
+        return total_danger
+
+    def find_nearest_food(self):
+        """Find the nearest dot or power pellet using A*"""
+        min_distance = float('inf')
+        nearest_food = None
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                if game_map[y][x] in [2, 3]:  # Dot or power pellet
+                    path = self.astar((self.x, self.y), (x, y))
+                    if path and len(path) < min_distance:
+                        min_distance = len(path)
+                        nearest_food = (x, y)
+        return nearest_food
+
+    def find_nearest_ghost(self, ghosts):
+        """Find the nearest ghost using A*"""
+        min_distance = float('inf')
+        nearest_ghost_pos = None
+        for ghost in ghosts:
+            if not ghost.eaten:  # Only chase active ghosts
+                path = self.astar((self.x, self.y), (ghost.x, ghost.y))
+                if path and len(path) < min_distance:
+                    min_distance = len(path)
+                    nearest_ghost_pos = (ghost.x, ghost.y)
+        return nearest_ghost_pos
+
+    def choose_safe_direction(self, ghosts):
+        """Choose a direction that minimizes danger from ghosts"""
+        best_direction = self.direction
+        min_danger = float('inf')
+        for dx, dy in DIRECTIONS:
+            next_x, next_y = self.x + dx, self.y + dy
+            if 0 <= next_x < GRID_WIDTH and 0 <= next_y < GRID_HEIGHT and game_map[next_y][next_x] != 1:
+                # Temporarily move to evaluate danger
+                temp_x, temp_y = self.x, self.y
+                self.x, self.y = next_x, next_y
+                danger = self.evaluate_danger(ghosts)
+                self.x, self.y = temp_x, temp_y  # Revert position
+                if danger < min_danger:
+                    min_danger = danger
+                    best_direction = (dx, dy)
+        return best_direction
+
+    def autoplay_move(self, ghosts):
+        """Logic for autoplay: prioritize eating food to win, chase ghosts only when safe or necessary"""
+        # Check if there is any food left
+        has_food = any(2 in row or 3 in row for row in game_map)
+        
+        # Evaluate danger level
+        danger = self.evaluate_danger(ghosts)
+        
+        if has_food:
+            # Prioritize eating food unless danger is too high
+            if danger > 4:  # High danger threshold to trigger avoidance
+                self.next_direction = self.choose_safe_direction(ghosts)
+                self.path = []  # Clear path to prioritize avoiding
+            else:
+                target = self.find_nearest_food()
+                if target:
+                    self.path = self.astar((self.x, self.y), target)
+                    if self.path:
+                        next_pos = self.path[0]
+                        dx = next_pos[0] - self.x
+                        dy = next_pos[1] - self.y
+                        self.next_direction = (dx, dy)
+                        self.path.pop(0)
+                    else:
+                        self.next_direction = self.choose_safe_direction(ghosts)
+        else:
+            # No food left, prioritize chasing ghosts if in power mode or if safe
+            if self.power_mode or danger == 0:
+                target = self.find_nearest_ghost(ghosts)
+                if target:
+                    self.path = self.astar((self.x, self.y), target)
+                    if self.path:
+                        next_pos = self.path[0]
+                        dx = next_pos[0] - self.x
+                        dy = next_pos[1] - self.y
+                        self.next_direction = (dx, dy)
+                        self.path.pop(0)
+                    else:
+                        self.next_direction = self.choose_safe_direction(ghosts)
+            else:
+                # Avoid ghosts if not in power mode and no food left
+                self.next_direction = self.choose_safe_direction(ghosts)
 
     def draw(self):
         # Draw Pacman as a circle with a mouth
@@ -602,9 +736,9 @@ async def game_over_screen():
         await asyncio.sleep(0.016)
 
 async def start_screen():
-    """Start screen with beautiful effects"""
+    """Start screen with beautiful effects and mode selection"""
     selected = 0
-    options = ["Start Game", "Exit"]
+    options = ["Manual Mode", "Autoplay Mode", "Exit"]
     
     # Animation variables
     title_bounce = 0
@@ -614,21 +748,23 @@ async def start_screen():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                return False
+                return False, False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     selected = (selected - 1) % len(options)
                 elif event.key == pygame.K_DOWN:
                     selected = (selected + 1) % len(options)
                 elif event.key == pygame.K_RETURN:
-                    if selected == 0:  # Start Game
-                        return True
+                    if selected == 0:  # Manual Mode
+                        return True, False
+                    elif selected == 1:  # Autoplay Mode
+                        return True, True
                     else:  # Exit
                         pygame.quit()
-                        return False
+                        return False, False
                 elif event.key == pygame.K_ESCAPE:
                     pygame.quit()
-                    return False
+                    return False, False
 
         time_counter += 1
         title_bounce = math.sin(time_counter * 0.1) * 5
@@ -755,8 +891,8 @@ async def win_screen():
         
         await asyncio.sleep(0.016)
 
-async def game_loop(difficulty):
-    """Main game loop"""
+async def game_loop(difficulty, autoplay=False):
+    """Main game loop with autoplay option"""
     pacman = Pacman()
     pacman.fps = difficulty["fps"]
     ghosts = [
@@ -775,19 +911,25 @@ async def game_loop(difficulty):
             if event.type == pygame.QUIT:
                 return "quit"
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    pacman.next_direction = UP
-                elif event.key == pygame.K_DOWN:
-                    pacman.next_direction = DOWN
-                elif event.key == pygame.K_LEFT:
-                    pacman.next_direction = LEFT
-                elif event.key == pygame.K_RIGHT:
-                    pacman.next_direction = RIGHT
-                elif event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_ESCAPE:
                     return "menu"  # Return to menu
+                if not autoplay:  # Manual mode: handle player input
+                    if event.key == pygame.K_UP:
+                        pacman.next_direction = UP
+                    elif event.key == pygame.K_DOWN:
+                        pacman.next_direction = DOWN
+                    elif event.key == pygame.K_LEFT:
+                        pacman.next_direction = LEFT
+                    elif event.key == pygame.K_RIGHT:
+                        pacman.next_direction = RIGHT
         
         if not game_over and not win:
             screen.fill(BLACK)
+            
+            # Autoplay logic
+            if autoplay:
+                pacman.autoplay_move(ghosts)
+            
             pacman.move()
             for ghost in ghosts:
                 ghost.scared = pacman.power_mode
@@ -843,8 +985,9 @@ async def main():
     """Main function with menu loop"""
     try:
         while True:
-            # Show start screen
-            if not await start_screen():
+            # Show start screen and get mode (manual or autoplay)
+            start_game, autoplay = await start_screen()
+            if not start_game:
                 break
             
             # Show difficulty selection
@@ -857,7 +1000,7 @@ async def main():
             
             # Game loop with restart/menu options
             while True:
-                result = await game_loop(difficulty)
+                result = await game_loop(difficulty, autoplay)
                 
                 if result == "quit":
                     pygame.quit()
